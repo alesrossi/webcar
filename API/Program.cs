@@ -1,3 +1,7 @@
+using System.Text.Json;
+using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
 namespace API;
 
 public class Program
@@ -8,10 +12,28 @@ public class Program
 
         // Add services to the container.
         builder.Services.AddAuthorization();
-
+        
+        builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                // Enable built-in naming policies from System.Text.Json
+                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            });
+        
+        builder.Services.AddDbContext<MainContext>(options =>
+        {
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            }
+            options.UseNpgsql(connectionString);
+        });
+        
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
-
+        
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
