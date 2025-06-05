@@ -1,0 +1,82 @@
+name: .NET CI for Dev Branch
+
+on:
+  push:
+    branches:
+      - dev # Or main, or any other branch
+  pull_request: # Optional: also run on pull requests targeting dev
+    branches:
+      - dev
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest # Use a Linux runner
+
+    # Service containers to run with ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15 # Or your preferred PostgreSQL version
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: supersecretlongpassword
+          POSTGRES_DB: main
+        ports:
+          - 5432:5432 # Map port 5432 on the service to port 5432 on the runner
+        # Health check to wait until PostgreSQL is ready
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # This environment variable will be used by your app for the connection string
+      # Ensure your appsettings.json structure matches.
+      # If it's "ConnectionStrings": { "PostgresDb": "..." }, then use ConnectionStrings__PostgresDb
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5440;Database=main;Username=root;Password=supersecretlongpassword;Include Error Detail=true;"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+      DOTNET_NOLOGO: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x' # Specify your project's .NET version (e.g., 6.0.x, 7.0.x, 8.0.x)
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore webcar.sln # Replace with your .sln file name
+
+      - name: Install EF Core tools (if not already a local tool)
+        run: dotnet tool install --global dotnet-ef
+        # If you have it as a local tool (dotnet-tools.json), you might use:
+        # run: dotnet tool restore
+
+      - name: Apply EF Migrations
+        # The startup project is typically your API project where Program.cs and DbContext configuration reside.
+        # The EF project is where your DbContext and Migrations folder are.
+        run: |
+          dotnet ef database update --project Infrastructure/Infrastructure.csproj --startup-project API/API.csproj
+        # Example:
+        # run: dotnet ef database update --project MyProject.DataAccess/MyProject.DataAccess.csproj --startup-project MyProject.Api/MyProject.Api.csproj
+        # This command uses the ConnectionStrings__DefaultConnection environment variable.
+
+      - name: Build solution
+        run: dotnet build webcar.sln --configuration Release --no-restore
+
+      - name: Run tests
+        # The test project needs to be specified.
+        # Tests will also use the ConnectionStrings__DefaultConnection environment variable.
+        run: dotnet test Tester/Tester.csproj --configuration Release --no-build --verbosity normal
+        # Example:
+        # run: dotnet test MyProject.Tests/MyProject.Tests.csproj --configuration Release --no-build --verbosity normal
