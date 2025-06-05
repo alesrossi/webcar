@@ -66,7 +66,7 @@ jobs:
         # The startup project is typically your API project where Program.cs and DbContext configuration reside.
         # The EF project is where your DbContext and Migrations folder are.
         run: |
-          dotnet ef database update --project Infrastructure/Infrastructure.csproj --startup-project API/API.csproj
+          dotnet ef database update --project ./Infrastructure/Infrastructure.csproj --startup-project ./API/API.csproj
         # Example:
         # run: dotnet ef database update --project MyProject.DataAccess/MyProject.DataAccess.csproj --startup-project MyProject.Api/MyProject.Api.csproj
         # This command uses the ConnectionStrings__DefaultConnection environment variable.
@@ -77,6 +77,6 @@ jobs:
       - name: Run tests
         # The test project needs to be specified.
         # Tests will also use the ConnectionStrings__DefaultConnection environment variable.
-        run: dotnet test Tester/Tester.csproj --configuration Release --no-build --verbosity normal
+        run: dotnet test ./Tester/Tester.csproj --configuration Release --no-build --verbosity normal
         # Example:
         # run: dotnet test MyProject.Tests/MyProject.Tests.csproj --configuration Release --no-build --verbosity normal
